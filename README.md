@@ -241,4 +241,4 @@ This analysis is based on publicly available data from company websites. Station
 
 ---
 
-*Analysis generated on December 2024*
+*Analysis generated on December 2025*
