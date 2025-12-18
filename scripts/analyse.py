@@ -218,37 +218,89 @@ def create_infrastructure_readiness_index(data: List[Dict]) -> None:
 
 
 def create_geographic_distribution(data: List[Dict]) -> None:
-    """Geographic scatter plot comparing petrol vs EV locations."""
-    fig, ax = plt.subplots(figsize=(14, 10))
+    """Geographic map showing Baku metropolitan concentration vs regional spread."""
+    fig, (ax_main, ax_baku) = plt.subplots(1, 2, figsize=(18, 9))
 
-    # Separate by station type
-    petrol_data = [(float(r['latitude']), float(r['longitude']))
-                   for r in data if r['station_type'] == 'Petrol' and r.get('latitude')]
-    ev_data = [(float(r['latitude']), float(r['longitude']))
-               for r in data if r['station_type'] == 'EV Charging' and r.get('latitude')]
+    # Separate by station type and region
+    baku_petrol = [(float(r['latitude']), float(r['longitude']))
+                   for r in data if r['station_type'] == 'Petrol' and r.get('city') == 'Bakı' and r.get('latitude')]
+    baku_ev = [(float(r['latitude']), float(r['longitude']))
+               for r in data if r['station_type'] == 'EV Charging' and r.get('city') == 'Bakı' and r.get('latitude')]
 
-    # Plot points
-    if petrol_data:
-        p_lats, p_lngs = zip(*petrol_data)
-        ax.scatter(p_lngs, p_lats, c=COLORS['Petrol'], label='Petrol Stations',
-                   s=60, alpha=0.6, edgecolors='black', linewidth=0.5, marker='o')
+    regional_petrol = [(float(r['latitude']), float(r['longitude']))
+                       for r in data if r['station_type'] == 'Petrol' and r.get('city') != 'Bakı' and r.get('latitude')]
+    regional_ev = [(float(r['latitude']), float(r['longitude']))
+                   for r in data if r['station_type'] == 'EV Charging' and r.get('city') != 'Bakı' and r.get('latitude')]
 
-    if ev_data:
-        ev_lats, ev_lngs = zip(*ev_data)
-        ax.scatter(ev_lngs, ev_lats, c=COLORS['EV Charging'], label='EV Charging',
-                   s=60, alpha=0.6, edgecolors='black', linewidth=0.5, marker='^')
+    # LEFT: National view with Baku highlighted
+    # Plot regional stations (smaller)
+    if regional_petrol:
+        r_lats, r_lngs = zip(*regional_petrol)
+        ax_main.scatter(r_lngs, r_lats, c=COLORS['Petrol'], label='Petrol (Regional)',
+                       s=40, alpha=0.5, edgecolors='black', linewidth=0.3, marker='o')
 
-    ax.set_xlabel('Longitude', fontsize=12)
-    ax.set_ylabel('Latitude', fontsize=12)
-    ax.set_title('Geographic Distribution: Petrol vs EV Charging in Azerbaijan',
-                 fontsize=14, fontweight='bold')
-    ax.legend(loc='upper right', fontsize=12, markerscale=1.5)
-    ax.grid(True, linestyle='--', alpha=0.5)
+    if regional_ev:
+        r_lats, r_lngs = zip(*regional_ev)
+        ax_main.scatter(r_lngs, r_lats, c=COLORS['EV Charging'], label='EV (Regional)',
+                       s=40, alpha=0.5, edgecolors='black', linewidth=0.3, marker='^')
 
-    # Add annotation for Baku
-    ax.annotate('Baku Metropolitan Area', xy=(49.9, 40.4), fontsize=11,
-                style='italic', bbox=dict(boxstyle='round,pad=0.5', facecolor='yellow', alpha=0.3),
-                xytext=(50.5, 40.8), arrowprops=dict(arrowstyle='->', color='gray', lw=1.5))
+    # Plot Baku stations (larger, prominent)
+    if baku_petrol:
+        b_lats, b_lngs = zip(*baku_petrol)
+        ax_main.scatter(b_lngs, b_lats, c=COLORS['Petrol'], label='Petrol (Baku)',
+                       s=100, alpha=0.8, edgecolors='black', linewidth=0.8, marker='o')
+
+    if baku_ev:
+        b_lats, b_lngs = zip(*baku_ev)
+        ax_main.scatter(b_lngs, b_lats, c=COLORS['EV Charging'], label='EV (Baku)',
+                       s=100, alpha=0.8, edgecolors='black', linewidth=0.8, marker='^')
+
+    # Highlight Baku area with circle
+    baku_circle = plt.Circle((49.85, 40.4), 0.35, color='yellow', fill=True, alpha=0.15, linewidth=2, linestyle='--')
+    ax_main.add_patch(baku_circle)
+
+    ax_main.set_xlabel('Longitude', fontsize=12)
+    ax_main.set_ylabel('Latitude', fontsize=12)
+    ax_main.set_title('National Distribution: Baku vs Regional Infrastructure',
+                     fontsize=14, fontweight='bold')
+    ax_main.legend(loc='upper right', fontsize=10, ncol=2)
+    ax_main.grid(True, linestyle='--', alpha=0.3)
+
+    # Add statistics box
+    total_baku = len(baku_petrol) + len(baku_ev)
+    total_regional = len(regional_petrol) + len(regional_ev)
+    stats_text = f'Baku: {total_baku} stations (44%)\nRegions: {total_regional} stations (56%)'
+    ax_main.text(0.02, 0.98, stats_text, transform=ax_main.transAxes,
+                fontsize=11, verticalalignment='top',
+                bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+
+    # RIGHT: Zoomed Baku metropolitan area
+    if baku_petrol:
+        b_lats, b_lngs = zip(*baku_petrol)
+        ax_baku.scatter(b_lngs, b_lats, c=COLORS['Petrol'], label=f'Petrol ({len(baku_petrol)})',
+                       s=120, alpha=0.7, edgecolors='black', linewidth=1, marker='o')
+
+    if baku_ev:
+        b_lats, b_lngs = zip(*baku_ev)
+        ax_baku.scatter(b_lngs, b_lats, c=COLORS['EV Charging'], label=f'EV ({len(baku_ev)})',
+                       s=120, alpha=0.7, edgecolors='black', linewidth=1, marker='^')
+
+    # Set Baku zoom limits
+    ax_baku.set_xlim(49.65, 50.1)
+    ax_baku.set_ylim(40.25, 40.55)
+
+    ax_baku.set_xlabel('Longitude', fontsize=12)
+    ax_baku.set_ylabel('Latitude', fontsize=12)
+    ax_baku.set_title('Baku Metropolitan Area (Detailed View)\n160 Total Stations',
+                     fontsize=14, fontweight='bold')
+    ax_baku.legend(loc='upper right', fontsize=11)
+    ax_baku.grid(True, linestyle='--', alpha=0.4)
+
+    # Add density indicator
+    density = total_baku / ((50.1-49.65) * (40.55-40.25))
+    ax_baku.text(0.02, 0.02, f'Density: {density:.0f} stations/deg²',
+                transform=ax_baku.transAxes, fontsize=10,
+                bbox=dict(boxstyle='round', facecolor='yellow', alpha=0.3))
 
     plt.tight_layout()
     plt.savefig(CHARTS_DIR / '4_geographic_distribution.png', dpi=150,
@@ -467,8 +519,8 @@ def create_amenities_comparison(data: List[Dict]) -> None:
     plt.close()
 
 
-def create_key_insights_summary(data: List[Dict]) -> None:
-    """Create a visual summary of key insights."""
+def create_metrics_dashboard(data: List[Dict]) -> None:
+    """Create a visual metrics dashboard with key performance indicators."""
     # Calculate key metrics
     total = len(data)
     petrol_count = sum(1 for r in data if r['station_type'] == 'Petrol')
@@ -491,66 +543,127 @@ def create_key_insights_summary(data: List[Dict]) -> None:
     ev_24_7 = sum(1 for r in data if r['station_type'] == 'EV Charging' and r.get('is_24_7') == 'Yes')
     ev_24_7_pct = (ev_24_7 / ev_count * 100) if ev_count > 0 else 0
 
-    fig, ax = plt.subplots(figsize=(14, 10))
-    ax.axis('off')
+    # Baku stats
+    baku_petrol = sum(1 for r in data if r.get('city') == 'Bakı' and r['station_type'] == 'Petrol')
+    baku_ev = sum(1 for r in data if r.get('city') == 'Bakı' and r['station_type'] == 'EV Charging')
 
-    # Title
-    fig.suptitle('Azerbaijan Fuel Infrastructure: Key Insights', fontsize=18, fontweight='bold', y=0.98)
+    # Create dashboard with 2x3 subplots
+    fig = plt.figure(figsize=(16, 10))
+    gs = fig.add_gridspec(2, 3, hspace=0.3, wspace=0.3)
 
-    # Create text summary
-    insights_text = f"""
-INFRASTRUCTURE OVERVIEW
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    # 1. Total Infrastructure Gauge
+    ax1 = fig.add_subplot(gs[0, 0])
+    sizes = [petrol_count, ev_count]
+    colors = [COLORS['Petrol'], COLORS['EV Charging']]
+    labels = [f'Petrol\n{petrol_count}', f'EV\n{ev_count}']
 
-Total Stations: {total}
-  • Petrol Stations: {petrol_count} ({petrol_count/total*100:.1f}%)
-  • EV Charging Stations: {ev_count} ({ev_count/total*100:.1f}%)
+    wedges, texts, autotexts = ax1.pie(sizes, labels=labels, colors=colors, autopct='%1.1f%%',
+                                         startangle=90, textprops={'fontsize': 11, 'fontweight': 'bold'})
+    ax1.set_title('Total Infrastructure\n364 Stations', fontsize=13, fontweight='bold', pad=10)
 
-KEY FINDING: Azerbaijan has MORE EV charging stations than petrol stations!
+    # 2. Regional Coverage Bar
+    ax2 = fig.add_subplot(gs[0, 1])
+    categories = ['Both\nTypes', 'Petrol\nOnly', 'EV\nOnly']
+    values = [both_count, petrol_only, ev_only]
+    bar_colors = ['#FFA500', COLORS['Petrol'], COLORS['EV Charging']]
+    bars = ax2.bar(categories, values, color=bar_colors, edgecolor='black', linewidth=1)
 
+    for bar, val in zip(bars, values):
+        height = bar.get_height()
+        ax2.text(bar.get_x() + bar.get_width()/2., height,
+                f'{val}\ncities', ha='center', va='bottom', fontsize=10, fontweight='bold')
 
-REGIONAL COVERAGE
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    ax2.set_ylabel('Number of Cities', fontsize=11)
+    ax2.set_title(f'Regional Coverage\n{len(city_stats)} Total Cities', fontsize=13, fontweight='bold', pad=10)
+    ax2.set_ylim(0, max(values) * 1.2)
+    ax2.yaxis.grid(True, linestyle='--', alpha=0.5)
 
-Total Cities/Regions: {len(city_stats)}
-  • Both Petrol & EV: {both_count} cities ({both_count/len(city_stats)*100:.1f}%)
-  • Petrol Only: {petrol_only} cities ({petrol_only/len(city_stats)*100:.1f}%)
-  • EV Only: {ev_only} cities ({ev_only/len(city_stats)*100:.1f}%)
+    # 3. EV Quality Metrics - Circular Progress
+    ax3 = fig.add_subplot(gs[0, 2], projection='polar')
 
-GAP ANALYSIS: {petrol_only} cities have petrol but lack EV infrastructure
+    # 24/7 availability gauge
+    theta = np.linspace(0, 2 * np.pi * (ev_24_7_pct / 100), 100)
+    radius = np.ones_like(theta)
+    ax3.plot(theta, radius, color=COLORS['EV Charging'], linewidth=15)
+    ax3.plot(np.linspace(0, 2*np.pi, 100), np.ones(100), color='lightgray', linewidth=15, alpha=0.3)
+    ax3.set_ylim(0, 1.2)
+    ax3.set_yticks([])
+    ax3.set_xticks([])
+    ax3.spines['polar'].set_visible(False)
+    ax3.text(0, 0, f'{ev_24_7_pct:.0f}%\n24/7', ha='center', va='center',
+             fontsize=16, fontweight='bold', color=COLORS['EV Charging'])
+    ax3.set_title('EV Station Availability', fontsize=13, fontweight='bold', pad=20)
 
+    # 4. Petrol Market Share
+    ax4 = fig.add_subplot(gs[1, 0])
+    petrol_companies = ['Azpetrol', 'SOCAR']
+    petrol_values = [
+        sum(1 for r in data if r['company'] == 'Azpetrol'),
+        sum(1 for r in data if r['company'] == 'SOCAR')
+    ]
+    petrol_colors = [COLORS['Azpetrol'], COLORS['SOCAR']]
 
-EV INFRASTRUCTURE QUALITY
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    bars = ax4.barh(petrol_companies, petrol_values, color=petrol_colors, edgecolor='black', linewidth=1)
+    for i, (bar, val) in enumerate(zip(bars, petrol_values)):
+        width = bar.get_width()
+        pct = val / sum(petrol_values) * 100
+        ax4.text(width, bar.get_y() + bar.get_height()/2,
+                f' {val} ({pct:.1f}%)', ha='left', va='center', fontsize=11, fontweight='bold')
 
-24/7 Availability: {ev_24_7}/{ev_count} stations ({ev_24_7_pct:.1f}%)
-Operator: 100% Government-operated (AYNA)
-Amenities: Cafes and WC facilities at majority of locations
+    ax4.set_xlabel('Number of Stations', fontsize=11)
+    ax4.set_title('Petrol Market Share', fontsize=13, fontweight='bold', pad=10)
+    ax4.xaxis.grid(True, linestyle='--', alpha=0.5)
 
+    # 5. Baku Dominance
+    ax5 = fig.add_subplot(gs[1, 1])
+    baku_categories = ['Petrol', 'EV']
+    baku_values = [baku_petrol, baku_ev]
+    baku_colors = [COLORS['Petrol'], COLORS['EV Charging']]
 
-PETROL MARKET SHARE
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    bars = ax5.bar(baku_categories, baku_values, color=baku_colors, edgecolor='black', linewidth=1.5, width=0.6)
+    for bar, val in zip(bars, baku_values):
+        height = bar.get_height()
+        ax5.text(bar.get_x() + bar.get_width()/2., height,
+                f'{val}', ha='center', va='bottom', fontsize=14, fontweight='bold')
 
-Azpetrol: {sum(1 for r in data if r['company'] == 'Azpetrol')} stations (62.4% of petrol market)
-SOCAR: {sum(1 for r in data if r['company'] == 'SOCAR')} stations (37.6% of petrol market)
+    ax5.set_ylabel('Number of Stations', fontsize=11)
+    ax5.set_title('Baku Metropolitan Area\n160 Total Stations (44% of country)',
+                 fontsize=13, fontweight='bold', pad=10)
+    ax5.set_ylim(0, max(baku_values) * 1.15)
+    ax5.yaxis.grid(True, linestyle='--', alpha=0.5)
 
+    # 6. EV Readiness Ratio (National Average)
+    ax6 = fig.add_subplot(gs[1, 2])
 
-STRATEGIC INSIGHTS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    national_ratio = ev_count / petrol_count if petrol_count > 0 else 0
 
-✓ EV infrastructure deployment is ahead of traditional fuel retail
-✓ Government-led EV charging rollout shows strong commitment to electrification
-✓ {petrol_only} cities represent immediate expansion opportunities for EV charging
-✓ Baku dominates both markets (43 petrol stations, 117 EV charging points)
-✓ All EV charging stations operate 24/7, supporting long-distance travel
-"""
+    # Create horizontal progress bar
+    ax6.barh([''], [1.0], color='lightgray', height=0.5, alpha=0.3)
+    ax6.barh([''], [min(national_ratio, 2.0)], color=COLORS['EV Charging'],
+             height=0.5, edgecolor='black', linewidth=2)
 
-    ax.text(0.05, 0.95, insights_text, transform=ax.transAxes,
-            fontsize=11, verticalalignment='top', family='monospace',
-            bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.3))
+    # Add parity line
+    ax6.axvline(x=1.0, color='black', linestyle='--', linewidth=2, alpha=0.7)
+    ax6.text(1.0, 0.6, 'Parity', ha='center', fontsize=9, style='italic')
 
-    plt.tight_layout()
-    plt.savefig(CHARTS_DIR / '8_key_insights_summary.png', dpi=150,
+    # Add ratio value
+    ax6.text(national_ratio/2, 0, f'{national_ratio:.2f}:1', ha='center', va='center',
+             fontsize=18, fontweight='bold', color='white',
+             bbox=dict(boxstyle='round,pad=0.5', facecolor=COLORS['EV Charging'], alpha=0.8))
+
+    ax6.set_xlim(0, 2.0)
+    ax6.set_ylim(-0.5, 1)
+    ax6.set_xlabel('EV-to-Petrol Ratio', fontsize=11)
+    ax6.set_title('National EV Readiness\nEV Stations per Petrol Station',
+                 fontsize=13, fontweight='bold', pad=10)
+    ax6.set_yticks([])
+    ax6.xaxis.grid(True, linestyle='--', alpha=0.5)
+
+    # Overall title
+    fig.suptitle('Azerbaijan Fuel Infrastructure: Key Metrics Dashboard',
+                fontsize=16, fontweight='bold', y=0.98)
+
+    plt.savefig(CHARTS_DIR / '8_metrics_dashboard.png', dpi=150,
                 bbox_inches='tight', facecolor='white')
     plt.close()
 
@@ -604,8 +717,8 @@ def main():
     print("  [7/8] Amenities comparison...")
     create_amenities_comparison(data)
 
-    print("  [8/8] Key insights summary...")
-    create_key_insights_summary(data)
+    print("  [8/8] Metrics dashboard...")
+    create_metrics_dashboard(data)
 
     print("\n" + "=" * 70)
     print("Analysis Complete!")

@@ -165,7 +165,51 @@ Cities with existing petrol presence but no EV charging represent **immediate de
 
 ## Strategic Insights Dashboard
 
-![Key Insights Summary](charts/8_key_insights_summary.png)
+![Metrics Dashboard](charts/8_metrics_dashboard.png)
+
+**Visual Dashboard:** The metrics dashboard above provides a 6-panel overview of key performance indicators including total infrastructure split, regional coverage distribution, EV availability, petrol market share, Baku dominance, and national EV readiness ratio.
+
+---
+
+## Key Findings & Strategic Insights
+
+### INFRASTRUCTURE OVERVIEW
+
+**Total Stations: 364**
+- Petrol Stations: 178 (48.9%)
+- EV Charging Stations: 186 (51.1%)
+
+**🔋 KEY FINDING: Azerbaijan has MORE EV charging stations than traditional petrol stations!**
+
+### REGIONAL COVERAGE
+
+**Total Cities/Regions: 112**
+- Both Petrol & EV: 24 cities (21.4%)
+- Petrol Only: 64 cities (57.1%)
+- EV Only: 24 cities (21.4%)
+
+**GAP ANALYSIS:** 64 cities have petrol but lack EV infrastructure - representing immediate expansion opportunities
+
+### EV INFRASTRUCTURE QUALITY
+
+**24/7 Availability:** 186/186 stations (100%)
+**Operator:** 100% Government-operated (AYNA)
+**Amenities:** Cafes and WC facilities at majority of locations (85.5%)
+
+### PETROL MARKET SHARE
+
+**Azpetrol:** 111 stations (62.4% of petrol market)
+**SOCAR:** 67 stations (37.6% of petrol market)
+
+### STRATEGIC INSIGHTS
+
+✓ **Energy Transition Leadership** - EV infrastructure deployment is ahead of traditional fuel retail
+✓ **Government Commitment** - Government-led EV charging rollout shows strong commitment to electrification
+✓ **Expansion Opportunities** - 64 cities represent immediate expansion targets for EV charging
+✓ **Urban Dominance** - Baku dominates both markets (43 petrol stations, 117 EV charging points)
+✓ **Reliability Focus** - All EV charging stations operate 24/7, supporting long-distance travel
+
+---
 
 ### Infrastructure Transformation
 
@@ -262,7 +306,7 @@ gas_station_analyse/
 │   ├── 5_coverage_gaps.png                  # Infrastructure gaps
 │   ├── 6_ev_connector_types.png             # EV connector standards
 │   ├── 7_amenities_comparison.png           # Services comparison
-│   └── 8_key_insights_summary.png           # Strategic dashboard
+│   └── 8_metrics_dashboard.png              # KPI dashboard (6 panels)
 ├── scripts/
 │   ├── azpetrol.py          # Azpetrol web scraper
 │   ├── socar.py             # SOCAR KML scraper
