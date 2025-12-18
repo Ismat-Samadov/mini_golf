@@ -87,19 +87,29 @@ This chart shows the **EV Infrastructure Readiness Ratio** (EV stations per petr
 
 ## Geographic Distribution
 
-### Nationwide Coverage Map
+### Baku Metropolitan vs Regional Spread
 
 ![Geographic Distribution](charts/4_geographic_distribution.png)
 
-**Coverage Analysis:**
-- **Latitude Range:** 38.4°N to 41.9°N (Lankaran to Khachmaz)
-- **Longitude Range:** 44.8°E to 50.3°E (Nakhchivan to Absheron Peninsula)
+**Dual-View Mapping:**
+- **LEFT:** National map showing all stations with Baku highlighted (yellow circle)
+- **RIGHT:** Zoomed detail of Baku metropolitan area showing station density
+
+**Key Statistics:**
+- **Baku:** 160 stations (44% of national total)
+  - Petrol: 43 stations
+  - EV Charging: 117 stations
+  - Density: ~1,200 stations/deg² (extremely high urban concentration)
+- **Regions:** 204 stations (56% of national total)
+  - Petrol: 135 stations (broader rural spread)
+  - EV Charging: 69 stations (highway corridors)
 
 **Spatial Patterns:**
-- 🟢 **EV Charging (triangles):** Concentrated in Baku corridor, major highway routes
-- 🔴 **Petrol Stations (circles):** Broader rural coverage, distributed across regions
+- 🔴 **Petrol (circles):** Widely distributed across regions, serving rural communities
+- 🟢 **EV Charging (triangles):** Heavily concentrated in Baku (73%), strategic highway placement
+- **Urban Dominance:** Baku's EV-to-petrol ratio (2.7:1) far exceeds national average (1.04:1)
 
-**Key Finding:** While petrol stations show wider geographic dispersion into rural areas, EV charging infrastructure is strategically positioned along major transportation corridors to support long-distance electric travel.
+**Key Finding:** The geographic visualization reveals stark infrastructure concentration - Baku metropolitan area contains 44% of all stations on just 0.3% of Azerbaijan's land area, with EV infrastructure showing extreme urban bias compared to petrol's balanced regional coverage.
 
 ---
 
