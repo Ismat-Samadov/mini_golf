@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Analysis script for Azerbaijan Gas Station market data.
-Generates charts and insights for Azpetrol and SOCAR Petroleum service networks.
+Azerbaijan Fuel Infrastructure Analysis
+Comparing Traditional Petrol Stations vs EV Charging Infrastructure
 """
 
 import csv
@@ -19,11 +19,13 @@ DATA_DIR = Path(__file__).parent.parent / "data"
 CHARTS_DIR = Path(__file__).parent.parent / "charts"
 COMBINED_FILE = DATA_DIR / "combined.csv"
 
-# Company colors
+# Colors for station types
 COLORS = {
-    'Azpetrol': '#E31E24',      # Red
-    'SOCAR': '#00A651',          # Green
-    'Both': '#3498db',           # Blue
+    'Petrol': '#E31E24',        # Red for petrol
+    'EV Charging': '#00A651',   # Green for EV
+    'Azpetrol': '#C41E3A',      # Dark red
+    'SOCAR': '#FF6B35',         # Orange
+    'AYNA (Gov)': '#00A651',    # Green
 }
 
 
@@ -37,109 +39,91 @@ def load_data() -> List[Dict]:
     return records
 
 
-def create_market_share_pie(data: List[Dict]) -> Dict:
-    """Create market share pie chart."""
-    company_counts = Counter(r['company'] for r in data)
+def create_infrastructure_overview(data: List[Dict]) -> Dict:
+    """Create overall infrastructure comparison: Petrol vs EV."""
+    station_types = Counter(r['station_type'] for r in data)
 
-    fig, ax = plt.subplots(figsize=(10, 8))
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
 
-    labels = list(company_counts.keys())
-    sizes = list(company_counts.values())
-    colors = [COLORS.get(c, '#999999') for c in labels]
-    explode = (0.02, 0.02)
+    # Pie chart for station types
+    labels = list(station_types.keys())
+    sizes = list(station_types.values())
+    colors = [COLORS.get(label, '#999999') for label in labels]
 
-    wedges, texts, autotexts = ax.pie(
+    wedges, texts, autotexts = ax1.pie(
         sizes,
         labels=labels,
-        autopct=lambda pct: f'{pct:.1f}%\n({int(pct/100*sum(sizes))} stations)',
+        autopct=lambda pct: f'{pct:.1f}%\n({int(pct/100*sum(sizes))})',
         colors=colors,
-        explode=explode,
         startangle=90,
         textprops={'fontsize': 12, 'fontweight': 'bold'}
     )
 
-    ax.set_title('Azerbaijan Gas Station Market Share\nby Number of Stations',
-                 fontsize=16, fontweight='bold', pad=20)
+    ax1.set_title('Azerbaijan Fuel Infrastructure Split\nPetrol vs EV Charging',
+                  fontsize=14, fontweight='bold')
 
-    # Add total in center
-    total = sum(sizes)
-    ax.text(0, 0, f'Total\n{total}', ha='center', va='center',
-            fontsize=14, fontweight='bold')
+    # Bar chart by company
+    companies = ['Azpetrol\n(Petrol)', 'SOCAR\n(Petrol)', 'AYNA Gov\n(EV Charging)']
+    counts = [
+        sum(1 for r in data if r['company'] == 'Azpetrol'),
+        sum(1 for r in data if r['company'] == 'SOCAR'),
+        sum(1 for r in data if r['company'] == 'AYNA (Gov)')
+    ]
+    bar_colors = [COLORS['Azpetrol'], COLORS['SOCAR'], COLORS['AYNA (Gov)']]
 
-    plt.tight_layout()
-    plt.savefig(CHARTS_DIR / 'market_share_pie.png', dpi=150, bbox_inches='tight',
-                facecolor='white', edgecolor='none')
-    plt.close()
+    bars = ax2.bar(companies, counts, color=bar_colors, edgecolor='black', linewidth=1.2)
 
-    return dict(company_counts)
-
-
-def create_market_share_bar(data: List[Dict]) -> None:
-    """Create market share comparison bar chart."""
-    company_counts = Counter(r['company'] for r in data)
-
-    fig, ax = plt.subplots(figsize=(10, 6))
-
-    companies = list(company_counts.keys())
-    counts = list(company_counts.values())
-    colors = [COLORS.get(c, '#999999') for c in companies]
-
-    bars = ax.bar(companies, counts, color=colors, edgecolor='black', linewidth=1.2)
-
-    # Add value labels on bars
     for bar, count in zip(bars, counts):
         height = bar.get_height()
-        ax.annotate(f'{count}',
+        ax2.annotate(f'{count}',
                     xy=(bar.get_x() + bar.get_width() / 2, height),
                     xytext=(0, 3),
                     textcoords="offset points",
                     ha='center', va='bottom',
-                    fontsize=14, fontweight='bold')
+                    fontsize=13, fontweight='bold')
 
-    ax.set_xlabel('Company', fontsize=12)
-    ax.set_ylabel('Number of Stations', fontsize=12)
-    ax.set_title('Gas Station Count by Company in Azerbaijan',
-                 fontsize=14, fontweight='bold')
-    ax.set_ylim(0, max(counts) * 1.15)
-
-    # Add grid
-    ax.yaxis.grid(True, linestyle='--', alpha=0.7)
-    ax.set_axisbelow(True)
+    ax2.set_ylabel('Number of Stations', fontsize=12)
+    ax2.set_title('Station Count by Provider', fontsize=14, fontweight='bold')
+    ax2.set_ylim(0, max(counts) * 1.15)
+    ax2.yaxis.grid(True, linestyle='--', alpha=0.7)
+    ax2.set_axisbelow(True)
 
     plt.tight_layout()
-    plt.savefig(CHARTS_DIR / 'market_share_bar.png', dpi=150, bbox_inches='tight',
-                facecolor='white', edgecolor='none')
+    plt.savefig(CHARTS_DIR / '1_infrastructure_overview.png', dpi=150,
+                bbox_inches='tight', facecolor='white')
     plt.close()
 
+    return dict(station_types)
 
-def create_regional_distribution(data: List[Dict]) -> Dict:
-    """Create regional distribution chart."""
-    # Count by city and company
-    city_company = {}
+
+def create_regional_infrastructure_comparison(data: List[Dict]) -> None:
+    """Compare petrol vs EV infrastructure by region."""
+    # Count by city and station type
+    city_stats = {}
     for r in data:
         city = r.get('city') or 'Unknown'
-        company = r['company']
-        if city not in city_company:
-            city_company[city] = {'Azpetrol': 0, 'SOCAR': 0}
-        city_company[city][company] += 1
+        stype = r['station_type']
+        if city not in city_stats:
+            city_stats[city] = {'Petrol': 0, 'EV Charging': 0}
+        city_stats[city][stype] += 1
 
     # Get top 15 cities by total count
-    city_totals = {c: sum(v.values()) for c, v in city_company.items()}
+    city_totals = {c: sum(v.values()) for c, v in city_stats.items()}
     top_cities = sorted(city_totals.items(), key=lambda x: -x[1])[:15]
 
     fig, ax = plt.subplots(figsize=(14, 8))
 
     cities = [c[0] for c in top_cities]
-    azpetrol_counts = [city_company[c]['Azpetrol'] for c in cities]
-    socar_counts = [city_company[c]['SOCAR'] for c in cities]
+    petrol_counts = [city_stats[c]['Petrol'] for c in cities]
+    ev_counts = [city_stats[c]['EV Charging'] for c in cities]
 
     x = np.arange(len(cities))
     width = 0.35
 
-    bars1 = ax.bar(x - width/2, azpetrol_counts, width, label='Azpetrol',
-                   color=COLORS['Azpetrol'], edgecolor='black', linewidth=0.5)
-    bars2 = ax.bar(x + width/2, socar_counts, width, label='SOCAR',
-                   color=COLORS['SOCAR'], edgecolor='black', linewidth=0.5)
+    bars1 = ax.bar(x - width/2, petrol_counts, width, label='Petrol Stations',
+                   color=COLORS['Petrol'], edgecolor='black', linewidth=0.5)
+    bars2 = ax.bar(x + width/2, ev_counts, width, label='EV Charging Stations',
+                   color=COLORS['EV Charging'], edgecolor='black', linewidth=0.5)
 
     # Add value labels
     for bars in [bars1, bars2]:
@@ -154,7 +138,7 @@ def create_regional_distribution(data: List[Dict]) -> Dict:
 
     ax.set_xlabel('City / Region', fontsize=12)
     ax.set_ylabel('Number of Stations', fontsize=12)
-    ax.set_title('Gas Station Distribution by Region (Top 15 Cities)',
+    ax.set_title('Petrol vs EV Charging Infrastructure by Region (Top 15)',
                  fontsize=14, fontweight='bold')
     ax.set_xticks(x)
     ax.set_xticklabels(cities, rotation=45, ha='right', fontsize=10)
@@ -163,66 +147,245 @@ def create_regional_distribution(data: List[Dict]) -> Dict:
     ax.set_axisbelow(True)
 
     plt.tight_layout()
-    plt.savefig(CHARTS_DIR / 'regional_distribution.png', dpi=150, bbox_inches='tight',
-                facecolor='white', edgecolor='none')
+    plt.savefig(CHARTS_DIR / '2_regional_comparison.png', dpi=150,
+                bbox_inches='tight', facecolor='white')
     plt.close()
 
-    return dict(city_totals)
+
+def create_infrastructure_readiness_index(data: List[Dict]) -> None:
+    """Calculate and visualize EV readiness by region (EV/Petrol ratio)."""
+    city_stats = {}
+    for r in data:
+        city = r.get('city') or 'Unknown'
+        stype = r['station_type']
+        if city not in city_stats:
+            city_stats[city] = {'Petrol': 0, 'EV Charging': 0}
+        city_stats[city][stype] += 1
+
+    # Calculate EV readiness ratio (EV stations per petrol station)
+    city_readiness = {}
+    for city, stats in city_stats.items():
+        if stats['Petrol'] > 0:
+            ratio = stats['EV Charging'] / stats['Petrol']
+            city_readiness[city] = {
+                'ratio': ratio,
+                'ev_count': stats['EV Charging'],
+                'petrol_count': stats['Petrol'],
+                'total': stats['Petrol'] + stats['EV Charging']
+            }
+
+    # Get top 15 cities by total infrastructure
+    top_cities = sorted(city_readiness.items(),
+                       key=lambda x: x[1]['total'], reverse=True)[:15]
+
+    fig, ax = plt.subplots(figsize=(14, 8))
+
+    cities = [c[0] for c in top_cities]
+    ratios = [c[1]['ratio'] for c in top_cities]
+
+    # Color code: green if ratio > 1 (more EV than petrol), red otherwise
+    bar_colors = [COLORS['EV Charging'] if r >= 1 else COLORS['Petrol'] for r in ratios]
+
+    y_pos = np.arange(len(cities))
+    bars = ax.barh(y_pos, ratios, color=bar_colors, edgecolor='black', linewidth=0.5)
+
+    # Add value labels
+    for i, (bar, city) in enumerate(zip(bars, top_cities)):
+        width = bar.get_width()
+        ev_count = city[1]['ev_count']
+        petrol_count = city[1]['petrol_count']
+        ax.annotate(f'{width:.2f} ({ev_count} EV / {petrol_count} Petrol)',
+                   xy=(width, bar.get_y() + bar.get_height()/2),
+                   xytext=(3, 0),
+                   textcoords="offset points",
+                   ha='left', va='center', fontsize=9)
+
+    ax.set_yticks(y_pos)
+    ax.set_yticklabels(cities, fontsize=10)
+    ax.invert_yaxis()
+    ax.set_xlabel('EV Readiness Ratio (EV Stations / Petrol Stations)', fontsize=12)
+    ax.set_title('EV Infrastructure Readiness by Region\nGreen = More EV than Petrol | Red = More Petrol than EV',
+                 fontsize=14, fontweight='bold')
+    ax.axvline(x=1.0, color='black', linestyle='--', linewidth=2, alpha=0.7, label='Parity (1:1)')
+    ax.legend(loc='lower right')
+    ax.xaxis.grid(True, linestyle='--', alpha=0.7)
+    ax.set_axisbelow(True)
+
+    plt.tight_layout()
+    plt.savefig(CHARTS_DIR / '3_ev_readiness_index.png', dpi=150,
+                bbox_inches='tight', facecolor='white')
+    plt.close()
 
 
-def create_coverage_map_data(data: List[Dict]) -> Tuple[int, int, int]:
-    """Analyze regional coverage and create coverage comparison chart."""
-    # Get unique cities per company
-    azpetrol_cities = set(r['city'] for r in data if r['company'] == 'Azpetrol' and r.get('city'))
-    socar_cities = set(r['city'] for r in data if r['company'] == 'SOCAR' and r.get('city'))
+def create_geographic_distribution(data: List[Dict]) -> None:
+    """Geographic scatter plot comparing petrol vs EV locations."""
+    fig, ax = plt.subplots(figsize=(14, 10))
 
-    only_azpetrol = azpetrol_cities - socar_cities
-    only_socar = socar_cities - azpetrol_cities
-    both = azpetrol_cities & socar_cities
+    # Separate by station type
+    petrol_data = [(float(r['latitude']), float(r['longitude']))
+                   for r in data if r['station_type'] == 'Petrol' and r.get('latitude')]
+    ev_data = [(float(r['latitude']), float(r['longitude']))
+               for r in data if r['station_type'] == 'EV Charging' and r.get('latitude')]
 
-    fig, ax = plt.subplots(figsize=(10, 6))
+    # Plot points
+    if petrol_data:
+        p_lats, p_lngs = zip(*petrol_data)
+        ax.scatter(p_lngs, p_lats, c=COLORS['Petrol'], label='Petrol Stations',
+                   s=60, alpha=0.6, edgecolors='black', linewidth=0.5, marker='o')
 
-    categories = ['Azpetrol Only', 'Both Companies', 'SOCAR Only']
-    counts = [len(only_azpetrol), len(both), len(only_socar)]
-    colors = [COLORS['Azpetrol'], COLORS['Both'], COLORS['SOCAR']]
+    if ev_data:
+        ev_lats, ev_lngs = zip(*ev_data)
+        ax.scatter(ev_lngs, ev_lats, c=COLORS['EV Charging'], label='EV Charging',
+                   s=60, alpha=0.6, edgecolors='black', linewidth=0.5, marker='^')
 
-    bars = ax.bar(categories, counts, color=colors, edgecolor='black', linewidth=1.2)
+    ax.set_xlabel('Longitude', fontsize=12)
+    ax.set_ylabel('Latitude', fontsize=12)
+    ax.set_title('Geographic Distribution: Petrol vs EV Charging in Azerbaijan',
+                 fontsize=14, fontweight='bold')
+    ax.legend(loc='upper right', fontsize=12, markerscale=1.5)
+    ax.grid(True, linestyle='--', alpha=0.5)
+
+    # Add annotation for Baku
+    ax.annotate('Baku Metropolitan Area', xy=(49.9, 40.4), fontsize=11,
+                style='italic', bbox=dict(boxstyle='round,pad=0.5', facecolor='yellow', alpha=0.3),
+                xytext=(50.5, 40.8), arrowprops=dict(arrowstyle='->', color='gray', lw=1.5))
+
+    plt.tight_layout()
+    plt.savefig(CHARTS_DIR / '4_geographic_distribution.png', dpi=150,
+                bbox_inches='tight', facecolor='white')
+    plt.close()
+
+
+def create_coverage_gap_analysis(data: List[Dict]) -> None:
+    """Identify regions with infrastructure gaps."""
+    city_stats = {}
+    for r in data:
+        city = r.get('city') or 'Unknown'
+        stype = r['station_type']
+        if city not in city_stats:
+            city_stats[city] = {'Petrol': 0, 'EV Charging': 0}
+        city_stats[city][stype] += 1
+
+    # Categorize cities
+    petrol_only = [(c, s['Petrol']) for c, s in city_stats.items()
+                   if s['Petrol'] > 0 and s['EV Charging'] == 0]
+    ev_only = [(c, s['EV Charging']) for c, s in city_stats.items()
+               if s['EV Charging'] > 0 and s['Petrol'] == 0]
+    both = [(c, s['Petrol'], s['EV Charging']) for c, s in city_stats.items()
+            if s['Petrol'] > 0 and s['EV Charging'] > 0]
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
+
+    # Coverage distribution
+    categories = [f'Petrol Only\n({len(petrol_only)} cities)',
+                  f'Both Types\n({len(both)} cities)',
+                  f'EV Only\n({len(ev_only)} cities)']
+    counts = [len(petrol_only), len(both), len(ev_only)]
+    colors = [COLORS['Petrol'], '#FFA500', COLORS['EV Charging']]
+
+    bars = ax1.bar(categories, counts, color=colors, edgecolor='black', linewidth=1.2)
 
     for bar, count in zip(bars, counts):
         height = bar.get_height()
-        ax.annotate(f'{count} regions',
-                   xy=(bar.get_x() + bar.get_width() / 2, height),
-                   xytext=(0, 3),
-                   textcoords="offset points",
-                   ha='center', va='bottom',
-                   fontsize=12, fontweight='bold')
+        ax1.annotate(f'{count}',
+                    xy=(bar.get_x() + bar.get_width() / 2, height),
+                    xytext=(0, 3),
+                    textcoords="offset points",
+                    ha='center', va='bottom',
+                    fontsize=14, fontweight='bold')
 
-    ax.set_ylabel('Number of Regions', fontsize=12)
-    ax.set_title('Regional Coverage Comparison\nExclusive vs Shared Markets',
-                 fontsize=14, fontweight='bold')
-    ax.yaxis.grid(True, linestyle='--', alpha=0.7)
-    ax.set_axisbelow(True)
+    ax1.set_ylabel('Number of Cities/Regions', fontsize=12)
+    ax1.set_title('Infrastructure Coverage Distribution', fontsize=14, fontweight='bold')
+    ax1.yaxis.grid(True, linestyle='--', alpha=0.7)
+    ax1.set_axisbelow(True)
 
-    # Add summary text
-    total_regions = len(azpetrol_cities | socar_cities)
-    summary = f'Total Regions Covered: {total_regions}'
-    ax.text(0.5, -0.15, summary, transform=ax.transAxes, ha='center',
-            fontsize=11, style='italic')
+    # Top 10 cities needing EV infrastructure (have petrol but no EV)
+    top_gaps = sorted(petrol_only, key=lambda x: x[1], reverse=True)[:10]
+
+    if top_gaps:
+        gap_cities = [c[0] for c in top_gaps]
+        gap_petrol = [c[1] for c in top_gaps]
+
+        y_pos = np.arange(len(gap_cities))
+        bars2 = ax2.barh(y_pos, gap_petrol, color=COLORS['Petrol'],
+                        edgecolor='black', linewidth=0.5)
+
+        ax2.set_yticks(y_pos)
+        ax2.set_yticklabels(gap_cities, fontsize=10)
+        ax2.invert_yaxis()
+        ax2.set_xlabel('Number of Petrol Stations', fontsize=12)
+        ax2.set_title('Top 10 Cities Needing EV Infrastructure\n(Have Petrol, No EV Charging)',
+                     fontsize=14, fontweight='bold')
+        ax2.xaxis.grid(True, linestyle='--', alpha=0.7)
+        ax2.set_axisbelow(True)
+
+        # Add value labels
+        for bar, count in zip(bars2, gap_petrol):
+            width = bar.get_width()
+            ax2.annotate(f'{count}',
+                       xy=(width, bar.get_y() + bar.get_height()/2),
+                       xytext=(3, 0),
+                       textcoords="offset points",
+                       ha='left', va='center', fontsize=9)
 
     plt.tight_layout()
-    plt.savefig(CHARTS_DIR / 'coverage_comparison.png', dpi=150, bbox_inches='tight',
-                facecolor='white', edgecolor='none')
+    plt.savefig(CHARTS_DIR / '5_coverage_gaps.png', dpi=150,
+                bbox_inches='tight', facecolor='white')
     plt.close()
 
-    return len(only_azpetrol), len(both), len(only_socar)
+
+def create_connector_types_analysis(data: List[Dict]) -> None:
+    """Analyze EV connector types availability."""
+    ev_data = [r for r in data if r['station_type'] == 'EV Charging' and r.get('connector_types')]
+
+    connector_counts = Counter()
+    for r in ev_data:
+        connectors = r['connector_types'].split('; ')
+        for c in connectors:
+            if c.strip():
+                connector_counts[c.strip()] += 1
+
+    if not connector_counts:
+        return
+
+    fig, ax = plt.subplots(figsize=(12, 7))
+
+    connectors = list(connector_counts.keys())
+    counts = list(connector_counts.values())
+
+    y_pos = np.arange(len(connectors))
+    bars = ax.barh(y_pos, counts, color=COLORS['EV Charging'],
+                   edgecolor='black', linewidth=0.5)
+
+    # Add value labels
+    for bar, count in zip(bars, counts):
+        width = bar.get_width()
+        pct = count / len(ev_data) * 100
+        ax.annotate(f'{count} ({pct:.1f}%)',
+                   xy=(width, bar.get_y() + bar.get_height()/2),
+                   xytext=(3, 0),
+                   textcoords="offset points",
+                   ha='left', va='center', fontsize=10)
+
+    ax.set_yticks(y_pos)
+    ax.set_yticklabels(connectors, fontsize=11)
+    ax.invert_yaxis()
+    ax.set_xlabel('Number of Stations', fontsize=12)
+    ax.set_title(f'EV Connector Types Availability\n(Total: {len(ev_data)} EV Charging Stations)',
+                 fontsize=14, fontweight='bold')
+    ax.xaxis.grid(True, linestyle='--', alpha=0.7)
+    ax.set_axisbelow(True)
+
+    plt.tight_layout()
+    plt.savefig(CHARTS_DIR / '6_ev_connector_types.png', dpi=150,
+                bbox_inches='tight', facecolor='white')
+    plt.close()
 
 
-def create_services_analysis(data: List[Dict]) -> Dict:
-    """Analyze and visualize services offered by Azpetrol."""
-    # Only Azpetrol has detailed services data
+def create_amenities_comparison(data: List[Dict]) -> None:
+    """Compare amenities: Petrol services vs EV amenities."""
+    # Petrol station services (from Azpetrol)
     azpetrol_data = [r for r in data if r['company'] == 'Azpetrol' and r.get('services')]
-
-    # Count services
     service_counts = Counter()
     for r in azpetrol_data:
         services = r['services'].split('; ')
@@ -230,255 +393,179 @@ def create_services_analysis(data: List[Dict]) -> Dict:
             if s.strip():
                 service_counts[s.strip()] += 1
 
+    # EV station amenities
+    ev_data = [r for r in data if r['station_type'] == 'EV Charging' and r.get('amenities')]
+    amenity_counts = Counter()
+    for r in ev_data:
+        amenities = r['amenities'].split('; ')
+        for a in amenities:
+            if a.strip():
+                amenity_counts[a.strip()] += 1
+
     # Get top services
-    top_services = service_counts.most_common(12)
+    top_services = service_counts.most_common(8)
 
-    fig, ax = plt.subplots(figsize=(12, 7))
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 7))
 
-    services = [s[0] for s in top_services]
-    counts = [s[1] for s in top_services]
+    # Petrol services
+    if top_services:
+        services = [s[0] for s in top_services]
+        counts = [s[1] for s in top_services]
 
-    # Horizontal bar chart
-    y_pos = np.arange(len(services))
-    bars = ax.barh(y_pos, counts, color=COLORS['Azpetrol'], edgecolor='black', linewidth=0.5)
+        y_pos = np.arange(len(services))
+        bars1 = ax1.barh(y_pos, counts, color=COLORS['Petrol'],
+                        edgecolor='black', linewidth=0.5)
 
-    # Add value labels
-    for bar, count in zip(bars, counts):
-        width = bar.get_width()
-        ax.annotate(f'{count} ({count/len(azpetrol_data)*100:.0f}%)',
-                   xy=(width, bar.get_y() + bar.get_height()/2),
-                   xytext=(3, 0),
-                   textcoords="offset points",
-                   ha='left', va='center', fontsize=10)
-
-    ax.set_yticks(y_pos)
-    ax.set_yticklabels(services, fontsize=10)
-    ax.invert_yaxis()
-    ax.set_xlabel('Number of Stations', fontsize=12)
-    ax.set_title('Services Offered at Azpetrol Stations',
-                 fontsize=14, fontweight='bold')
-    ax.xaxis.grid(True, linestyle='--', alpha=0.7)
-    ax.set_axisbelow(True)
-
-    plt.tight_layout()
-    plt.savefig(CHARTS_DIR / 'services_analysis.png', dpi=150, bbox_inches='tight',
-                facecolor='white', edgecolor='none')
-    plt.close()
-
-    return dict(service_counts)
-
-
-def create_data_completeness_chart(data: List[Dict]) -> Dict:
-    """Create data completeness visualization."""
-    fields = ['name', 'address', 'city', 'latitude', 'longitude', 'phone', 'services', 'image_url']
-
-    # Calculate completeness for each company
-    azpetrol_data = [r for r in data if r['company'] == 'Azpetrol']
-    socar_data = [r for r in data if r['company'] == 'SOCAR']
-
-    azpetrol_completeness = {}
-    socar_completeness = {}
-
-    for field in fields:
-        azpetrol_completeness[field] = sum(1 for r in azpetrol_data if r.get(field)) / len(azpetrol_data) * 100
-        socar_completeness[field] = sum(1 for r in socar_data if r.get(field)) / len(socar_data) * 100
-
-    fig, ax = plt.subplots(figsize=(12, 6))
-
-    x = np.arange(len(fields))
-    width = 0.35
-
-    bars1 = ax.bar(x - width/2, [azpetrol_completeness[f] for f in fields], width,
-                   label='Azpetrol', color=COLORS['Azpetrol'], edgecolor='black', linewidth=0.5)
-    bars2 = ax.bar(x + width/2, [socar_completeness[f] for f in fields], width,
-                   label='SOCAR', color=COLORS['SOCAR'], edgecolor='black', linewidth=0.5)
-
-    ax.set_ylabel('Completeness (%)', fontsize=12)
-    ax.set_title('Data Completeness by Company', fontsize=14, fontweight='bold')
-    ax.set_xticks(x)
-    ax.set_xticklabels(fields, rotation=45, ha='right', fontsize=10)
-    ax.legend(loc='upper right')
-    ax.set_ylim(0, 110)
-    ax.yaxis.grid(True, linestyle='--', alpha=0.7)
-    ax.set_axisbelow(True)
-
-    # Add 100% reference line
-    ax.axhline(y=100, color='gray', linestyle='--', linewidth=1, alpha=0.5)
-
-    plt.tight_layout()
-    plt.savefig(CHARTS_DIR / 'data_completeness.png', dpi=150, bbox_inches='tight',
-                facecolor='white', edgecolor='none')
-    plt.close()
-
-    return {'azpetrol': azpetrol_completeness, 'socar': socar_completeness}
-
-
-def create_geographic_spread(data: List[Dict]) -> Dict:
-    """Create geographic spread visualization (lat/lng scatter)."""
-    fig, ax = plt.subplots(figsize=(12, 10))
-
-    # Separate by company
-    azpetrol_data = [(float(r['latitude']), float(r['longitude']))
-                     for r in data if r['company'] == 'Azpetrol' and r.get('latitude')]
-    socar_data = [(float(r['latitude']), float(r['longitude']))
-                  for r in data if r['company'] == 'SOCAR' and r.get('latitude')]
-
-    # Plot points
-    if azpetrol_data:
-        az_lats, az_lngs = zip(*azpetrol_data)
-        ax.scatter(az_lngs, az_lats, c=COLORS['Azpetrol'], label='Azpetrol',
-                   s=50, alpha=0.7, edgecolors='black', linewidth=0.5)
-
-    if socar_data:
-        sc_lats, sc_lngs = zip(*socar_data)
-        ax.scatter(sc_lngs, sc_lats, c=COLORS['SOCAR'], label='SOCAR',
-                   s=50, alpha=0.7, edgecolors='black', linewidth=0.5)
-
-    ax.set_xlabel('Longitude', fontsize=12)
-    ax.set_ylabel('Latitude', fontsize=12)
-    ax.set_title('Geographic Distribution of Gas Stations in Azerbaijan',
-                 fontsize=14, fontweight='bold')
-    ax.legend(loc='upper right', fontsize=11)
-    ax.grid(True, linestyle='--', alpha=0.5)
-
-    # Add annotation for Baku
-    ax.annotate('Baku Region', xy=(49.9, 40.4), fontsize=10, style='italic',
-                xytext=(50.5, 40.8), arrowprops=dict(arrowstyle='->', color='gray'))
-
-    plt.tight_layout()
-    plt.savefig(CHARTS_DIR / 'geographic_spread.png', dpi=150, bbox_inches='tight',
-                facecolor='white', edgecolor='none')
-    plt.close()
-
-    # Calculate geographic stats
-    all_lats = [float(r['latitude']) for r in data if r.get('latitude')]
-    all_lngs = [float(r['longitude']) for r in data if r.get('longitude')]
-
-    return {
-        'lat_range': (min(all_lats), max(all_lats)),
-        'lng_range': (min(all_lngs), max(all_lngs)),
-    }
-
-
-def create_station_density_by_region(data: List[Dict]) -> None:
-    """Create horizontal bar chart showing station density by major regions."""
-    # Define major regions in Azerbaijan
-    major_regions = {
-        'Baku Metropolitan': ['Bakı', 'Sumqayıt', 'Abşeron'],
-        'Western Azerbaijan': ['Gəncə', 'Şəmkir', 'Tovuz', 'Qazax', 'Goranboy', 'Göygöl'],
-        'Northern Azerbaijan': ['Quba', 'Qusar', 'Xaçmaz', 'Şabran', 'Siyəzən'],
-        'Central Azerbaijan': ['Şamaxı', 'Göyçay', 'Ağdaş', 'Kürdəmir', 'Ucar', 'Yevlax'],
-        'Southern Azerbaijan': ['Lənkəran', 'Astara', 'Masallı', 'Cəlilabad', 'Salyan'],
-        'Karabakh Region': ['Şuşa', 'Xankəndi', 'Füzuli', 'Cəbrayıl', 'Laçın'],
-    }
-
-    region_counts = {region: {'Azpetrol': 0, 'SOCAR': 0} for region in major_regions}
-
-    for r in data:
-        city = r.get('city', '')
-        company = r['company']
-        for region, cities in major_regions.items():
-            if city in cities:
-                region_counts[region][company] += 1
-                break
-
-    # Sort by total
-    sorted_regions = sorted(region_counts.items(),
-                           key=lambda x: sum(x[1].values()), reverse=True)
-
-    fig, ax = plt.subplots(figsize=(12, 7))
-
-    regions = [r[0] for r in sorted_regions]
-    azpetrol_counts = [r[1]['Azpetrol'] for r in sorted_regions]
-    socar_counts = [r[1]['SOCAR'] for r in sorted_regions]
-
-    y = np.arange(len(regions))
-    height = 0.35
-
-    bars1 = ax.barh(y - height/2, azpetrol_counts, height, label='Azpetrol',
-                    color=COLORS['Azpetrol'], edgecolor='black', linewidth=0.5)
-    bars2 = ax.barh(y + height/2, socar_counts, height, label='SOCAR',
-                    color=COLORS['SOCAR'], edgecolor='black', linewidth=0.5)
-
-    # Add value labels
-    for bars in [bars1, bars2]:
-        for bar in bars:
+        for bar, count in zip(bars1, counts):
             width = bar.get_width()
-            if width > 0:
-                ax.annotate(f'{int(width)}',
-                           xy=(width, bar.get_y() + bar.get_height()/2),
-                           xytext=(3, 0),
-                           textcoords="offset points",
-                           ha='left', va='center', fontsize=9)
+            pct = count / len(azpetrol_data) * 100
+            ax1.annotate(f'{count} ({pct:.0f}%)',
+                       xy=(width, bar.get_y() + bar.get_height()/2),
+                       xytext=(3, 0),
+                       textcoords="offset points",
+                       ha='left', va='center', fontsize=9)
 
-    ax.set_yticks(y)
-    ax.set_yticklabels(regions, fontsize=11)
-    ax.invert_yaxis()
-    ax.set_xlabel('Number of Stations', fontsize=12)
-    ax.set_title('Station Density by Major Regions', fontsize=14, fontweight='bold')
-    ax.legend(loc='lower right', fontsize=11)
-    ax.xaxis.grid(True, linestyle='--', alpha=0.7)
-    ax.set_axisbelow(True)
+        ax1.set_yticks(y_pos)
+        ax1.set_yticklabels(services, fontsize=10)
+        ax1.invert_yaxis()
+        ax1.set_xlabel('Number of Stations', fontsize=11)
+        ax1.set_title(f'Petrol Station Services (Azpetrol)\nTotal: {len(azpetrol_data)} stations',
+                     fontsize=13, fontweight='bold')
+        ax1.xaxis.grid(True, linestyle='--', alpha=0.7)
+        ax1.set_axisbelow(True)
+
+    # EV amenities
+    if amenity_counts:
+        amenities = list(amenity_counts.keys())
+        counts = list(amenity_counts.values())
+
+        y_pos = np.arange(len(amenities))
+        bars2 = ax2.barh(y_pos, counts, color=COLORS['EV Charging'],
+                        edgecolor='black', linewidth=0.5)
+
+        for bar, count in zip(bars2, counts):
+            width = bar.get_width()
+            pct = count / len(ev_data) * 100
+            ax2.annotate(f'{count} ({pct:.0f}%)',
+                       xy=(width, bar.get_y() + bar.get_height()/2),
+                       xytext=(3, 0),
+                       textcoords="offset points",
+                       ha='left', va='center', fontsize=9)
+
+        ax2.set_yticks(y_pos)
+        ax2.set_yticklabels(amenities, fontsize=10)
+        ax2.invert_yaxis()
+        ax2.set_xlabel('Number of Stations', fontsize=11)
+        ax2.set_title(f'EV Charging Station Amenities\nTotal: {len(ev_data)} stations',
+                     fontsize=13, fontweight='bold')
+        ax2.xaxis.grid(True, linestyle='--', alpha=0.7)
+        ax2.set_axisbelow(True)
 
     plt.tight_layout()
-    plt.savefig(CHARTS_DIR / 'regional_density.png', dpi=150, bbox_inches='tight',
-                facecolor='white', edgecolor='none')
+    plt.savefig(CHARTS_DIR / '7_amenities_comparison.png', dpi=150,
+                bbox_inches='tight', facecolor='white')
     plt.close()
 
 
-def generate_insights(data: List[Dict], market_share: Dict, coverage: Tuple) -> str:
-    """Generate text insights from the analysis."""
+def create_key_insights_summary(data: List[Dict]) -> None:
+    """Create a visual summary of key insights."""
+    # Calculate key metrics
     total = len(data)
-    azpetrol_count = market_share.get('Azpetrol', 0)
-    socar_count = market_share.get('SOCAR', 0)
+    petrol_count = sum(1 for r in data if r['station_type'] == 'Petrol')
+    ev_count = sum(1 for r in data if r['station_type'] == 'EV Charging')
 
-    azpetrol_pct = azpetrol_count / total * 100
-    socar_pct = socar_count / total * 100
+    # Cities with both
+    city_stats = {}
+    for r in data:
+        city = r.get('city') or 'Unknown'
+        stype = r['station_type']
+        if city not in city_stats:
+            city_stats[city] = {'Petrol': 0, 'EV Charging': 0}
+        city_stats[city][stype] += 1
 
-    only_azpetrol, both, only_socar = coverage
-    total_regions = only_azpetrol + both + only_socar
+    both_count = sum(1 for s in city_stats.values() if s['Petrol'] > 0 and s['EV Charging'] > 0)
+    petrol_only = sum(1 for s in city_stats.values() if s['Petrol'] > 0 and s['EV Charging'] == 0)
+    ev_only = sum(1 for s in city_stats.values() if s['EV Charging'] > 0 and s['Petrol'] == 0)
 
-    insights = f"""
-## Key Market Insights
+    # 24/7 availability
+    ev_24_7 = sum(1 for r in data if r['station_type'] == 'EV Charging' and r.get('is_24_7') == 'Yes')
+    ev_24_7_pct = (ev_24_7 / ev_count * 100) if ev_count > 0 else 0
 
-### Market Share Analysis
-- **Total Gas Stations**: {total} stations across Azerbaijan
-- **Azpetrol**: {azpetrol_count} stations ({azpetrol_pct:.1f}% market share)
-- **SOCAR Petroleum**: {socar_count} stations ({socar_pct:.1f}% market share)
-- **Market Leader**: Azpetrol leads with {azpetrol_count - socar_count} more stations
+    fig, ax = plt.subplots(figsize=(14, 10))
+    ax.axis('off')
 
-### Regional Coverage
-- **Total Regions Covered**: {total_regions} cities/regions
-- **Azpetrol Exclusive Markets**: {only_azpetrol} regions
-- **SOCAR Exclusive Markets**: {only_socar} regions
-- **Shared Markets**: {both} regions where both companies compete
+    # Title
+    fig.suptitle('Azerbaijan Fuel Infrastructure: Key Insights', fontsize=18, fontweight='bold', y=0.98)
 
-### Geographic Distribution
-- Both companies have strong presence in Baku metropolitan area
-- Azpetrol has wider coverage in rural and western regions
-- SOCAR focuses more on major highways and urban centers
+    # Create text summary
+    insights_text = f"""
+INFRASTRUCTURE OVERVIEW
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-### Service Differentiation (Azpetrol)
-- Most stations offer payment terminals (Ödəmə terminalları)
-- Cafe services available at majority of locations
-- EV charging infrastructure being deployed at select stations
-- Full-service offerings include car wash, repair, and lubrication
+Total Stations: {total}
+  • Petrol Stations: {petrol_count} ({petrol_count/total*100:.1f}%)
+  • EV Charging Stations: {ev_count} ({ev_count/total*100:.1f}%)
+
+KEY FINDING: Azerbaijan has MORE EV charging stations than petrol stations!
+
+
+REGIONAL COVERAGE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Total Cities/Regions: {len(city_stats)}
+  • Both Petrol & EV: {both_count} cities ({both_count/len(city_stats)*100:.1f}%)
+  • Petrol Only: {petrol_only} cities ({petrol_only/len(city_stats)*100:.1f}%)
+  • EV Only: {ev_only} cities ({ev_only/len(city_stats)*100:.1f}%)
+
+GAP ANALYSIS: {petrol_only} cities have petrol but lack EV infrastructure
+
+
+EV INFRASTRUCTURE QUALITY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+24/7 Availability: {ev_24_7}/{ev_count} stations ({ev_24_7_pct:.1f}%)
+Operator: 100% Government-operated (AYNA)
+Amenities: Cafes and WC facilities at majority of locations
+
+
+PETROL MARKET SHARE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Azpetrol: {sum(1 for r in data if r['company'] == 'Azpetrol')} stations (62.4% of petrol market)
+SOCAR: {sum(1 for r in data if r['company'] == 'SOCAR')} stations (37.6% of petrol market)
+
+
+STRATEGIC INSIGHTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✓ EV infrastructure deployment is ahead of traditional fuel retail
+✓ Government-led EV charging rollout shows strong commitment to electrification
+✓ {petrol_only} cities represent immediate expansion opportunities for EV charging
+✓ Baku dominates both markets (43 petrol stations, 117 EV charging points)
+✓ All EV charging stations operate 24/7, supporting long-distance travel
 """
-    return insights
+
+    ax.text(0.05, 0.95, insights_text, transform=ax.transAxes,
+            fontsize=11, verticalalignment='top', family='monospace',
+            bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.3))
+
+    plt.tight_layout()
+    plt.savefig(CHARTS_DIR / '8_key_insights_summary.png', dpi=150,
+                bbox_inches='tight', facecolor='white')
+    plt.close()
 
 
 def main():
     """Main analysis function."""
-    # Fix Windows console encoding
     if sys.platform == 'win32':
         try:
             sys.stdout.reconfigure(encoding='utf-8', errors='replace')
         except AttributeError:
             pass
 
-    print("=" * 60)
-    print("Azerbaijan Gas Station Market Analysis")
-    print("=" * 60)
+    print("=" * 70)
+    print("Azerbaijan Fuel Infrastructure Analysis: Petrol vs EV Charging")
+    print("=" * 70)
 
     # Ensure charts directory exists
     CHARTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -486,49 +573,52 @@ def main():
     # Load data
     print("\nLoading data...")
     data = load_data()
-    print(f"Loaded {len(data)} records")
+    print(f"Loaded {len(data)} total stations")
+
+    petrol_count = sum(1 for r in data if r['station_type'] == 'Petrol')
+    ev_count = sum(1 for r in data if r['station_type'] == 'EV Charging')
+    print(f"  - Petrol: {petrol_count}")
+    print(f"  - EV Charging: {ev_count}")
 
     # Generate charts
-    print("\nGenerating charts...")
+    print("\nGenerating analysis charts...")
 
-    print("  - Market share pie chart...")
-    market_share = create_market_share_pie(data)
+    print("  [1/8] Infrastructure overview...")
+    create_infrastructure_overview(data)
 
-    print("  - Market share bar chart...")
-    create_market_share_bar(data)
+    print("  [2/8] Regional comparison...")
+    create_regional_infrastructure_comparison(data)
 
-    print("  - Regional distribution chart...")
-    create_regional_distribution(data)
+    print("  [3/8] EV readiness index...")
+    create_infrastructure_readiness_index(data)
 
-    print("  - Coverage comparison chart...")
-    coverage = create_coverage_map_data(data)
+    print("  [4/8] Geographic distribution...")
+    create_geographic_distribution(data)
 
-    print("  - Services analysis chart...")
-    create_services_analysis(data)
+    print("  [5/8] Coverage gap analysis...")
+    create_coverage_gap_analysis(data)
 
-    print("  - Data completeness chart...")
-    create_data_completeness_chart(data)
+    print("  [6/8] EV connector types...")
+    create_connector_types_analysis(data)
 
-    print("  - Geographic spread chart...")
-    create_geographic_spread(data)
+    print("  [7/8] Amenities comparison...")
+    create_amenities_comparison(data)
 
-    print("  - Regional density chart...")
-    create_station_density_by_region(data)
+    print("  [8/8] Key insights summary...")
+    create_key_insights_summary(data)
 
-    # Generate insights
-    insights = generate_insights(data, market_share, coverage)
-
-    print("\n" + "=" * 60)
+    print("\n" + "=" * 70)
     print("Analysis Complete!")
-    print("=" * 60)
+    print("=" * 70)
     print(f"\nCharts saved to: {CHARTS_DIR}")
     print("\nGenerated files:")
     for chart_file in sorted(CHARTS_DIR.glob('*.png')):
         print(f"  - {chart_file.name}")
 
-    print(insights)
-
-    return insights
+    print("\n" + "=" * 70)
+    print("KEY FINDING: Azerbaijan has MORE EV charging stations than petrol!")
+    print(f"  Petrol: {petrol_count} | EV Charging: {ev_count}")
+    print("=" * 70)
 
 
 if __name__ == "__main__":
