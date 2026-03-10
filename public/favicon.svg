@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="12" fill="#0a0a1a"/>
+  <!-- Golf green -->
+  <rect x="8" y="38" width="48" height="14" rx="3" fill="#0d3320"/>
+  <rect x="8" y="38" width="48" height="2" fill="#00ff88" opacity="0.6"/>
+  <!-- Golf ball with neon glow -->
+  <circle cx="32" cy="28" r="14" fill="#1a1a2e"/>
+  <circle cx="32" cy="28" r="13" fill="white" opacity="0.95"/>
+  <circle cx="28" cy="24" r="3" fill="#e0e0e0"/>
+  <circle cx="36" cy="22" r="2" fill="#e0e0e0"/>
+  <circle cx="38" cy="30" r="2.5" fill="#e0e0e0"/>
+  <circle cx="26" cy="31" r="2" fill="#e0e0e0"/>
+  <circle cx="32" cy="35" r="2" fill="#e0e0e0"/>
+  <!-- Neon glow ring -->
+  <circle cx="32" cy="28" r="14" fill="none" stroke="#00ff88" stroke-width="2" opacity="0.8"/>
+  <!-- Flag -->
+  <line x1="44" y1="38" x2="44" y2="18" stroke="#888" stroke-width="1.5"/>
+  <polygon points="44,18 54,22 44,26" fill="#ff0066"/>
+</svg>
